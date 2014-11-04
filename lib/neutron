@@ -821,6 +821,8 @@ function _configure_neutron_dhcp_agent {
     iniset $Q_DHCP_CONF_FILE DEFAULT debug $ENABLE_DEBUG_LOG_LEVEL
     iniset $Q_DHCP_CONF_FILE DEFAULT use_namespaces $Q_USE_NAMESPACE
     iniset $Q_DHCP_CONF_FILE DEFAULT root_helper "$Q_RR_COMMAND"
+    iniset $Q_DHCP_CONF_FILE DEFAULT dhcp_driver neutron.agent.linux.dhcp.Dnsmasq
+    iniset $Q_DHCP_CONF_FILE DEFAULT dnsmasq_config_file /etc/neutron/dnsmasq-neutron.conf
 
     _neutron_setup_interface_driver $Q_DHCP_CONF_FILE
 
