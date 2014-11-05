@@ -569,6 +569,9 @@ source $TOP_DIR/lib/baremetal
 source $TOP_DIR/lib/ldap
 source $TOP_DIR/lib/dstat
 
+#Added by JMKang
+source $TOP_DIR/lib/elasticswitch
+
 # Extras Source
 # --------------
 
@@ -1303,6 +1306,12 @@ if is_service_enabled heat; then
     fi
 fi
 
+echo_summary "Install and start ElasticSwitch"
+if is_service_enabled elasticswitch; then
+    echo_summary "Install and start ElasticSwitch"
+    install_elasticswitch
+    start_elasticswitch
+fi
 
 # Create account rc files
 # =======================
