@@ -982,6 +982,13 @@ start_dstat
 # Start Services
 # ==============
 
+# ElasticSwitch (JM Kang)
+if is_service_enabled elasticswitch; then
+    echo_summary "Install ElasticSwitch"
+    install_elasticswitch
+fi
+
+
 # Keystone
 # --------
 
@@ -1306,12 +1313,12 @@ if is_service_enabled heat; then
     fi
 fi
 
-echo_summary "Install and start ElasticSwitch"
+# ElasticSwitch (JM Kang)
 if is_service_enabled elasticswitch; then
-    echo_summary "Install and start ElasticSwitch"
-    install_elasticswitch
+    echo_summary "Start ElasticSwitch"
     start_elasticswitch
 fi
+
 
 # Create account rc files
 # =======================

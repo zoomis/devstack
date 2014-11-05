@@ -87,6 +87,8 @@ function start_elasticswitch {
     # The quoted command must be a single command and not include an
     # shell metacharacters, redirections or shell builtins.
     # run_process elasticswitch "$elasticswitch_DIR/bin/elasticswitch-bin"
+    $ES_SCRIPT_DIR/ovs_scripts/setup_controller
+
     run_process elasticswitch "cd $ES_TESTBED_DIR && $ES_DIR/testbed/run"
 }
 
