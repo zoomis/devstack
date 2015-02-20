@@ -28,11 +28,12 @@ set +o pipefail
 # --------
 
 # Set up default directories
+GITDIR["python-ironicclient"]=$DEST/python-ironicclient
+
 IRONIC_DIR=$DEST/ironic
 IRONIC_PYTHON_AGENT_DIR=$DEST/ironic-python-agent
 IRONIC_DATA_DIR=$DATA_DIR/ironic
 IRONIC_STATE_PATH=/var/lib/ironic
-IRONICCLIENT_DIR=$DEST/python-ironicclient
 IRONIC_AUTH_CACHE_DIR=${IRONIC_AUTH_CACHE_DIR:-/var/cache/ironic}
 IRONIC_CONF_DIR=${IRONIC_CONF_DIR:-/etc/ironic}
 IRONIC_CONF_FILE=$IRONIC_CONF_DIR/ironic.conf
@@ -150,9 +151,14 @@ function install_ironic {
 
 # install_ironicclient() - Collect sources and prepare
 function install_ironicclient {
-    git_clone $IRONICCLIENT_REPO $IRONICCLIENT_DIR $IRONICCLIENT_BRANCH
-    setup_develop $IRONICCLIENT_DIR
-    sudo install -D -m 0644 -o $STACK_USER {$IRONICCLIENT_DIR/tools/,/etc/bash_completion.d/}ironic.bash_completion
+    if use_library_from_git "python-ironicclient"; then
+        git_clone_by_name "python-ironicclient"
+        setup_dev_lib "python-ironicclient"
+        sudo install -D -m 0644 -o $STACK_USER {${GITDIR["python-ironicclient"]}/tools/,/etc/bash_completion.d/}ironic.bash_completion
+    else
+        # nothing actually "requires" ironicclient, so force instally from pypi
+        pip_install python-ironicclient
+    fi
 }
 
 # _cleanup_ironic_apache_wsgi() - Remove wsgi files, disable and remove apache vhost file
@@ -456,9 +462,25 @@ function create_bridge_and_vms {
     create_ovs_taps
 }
 
+function wait_for_nova_resources {
+    # After nodes have been enrolled, we need to wait for both ironic and
+    # nova's periodic tasks to populate the resource tracker with available
+    # nodes and resources. Wait up to 2 minutes for a given resource before
+    # timing out.
+    local resource=$1
+    local expected_count=$2
+    echo_summary "Waiting 2 minutes for Nova resource tracker to pick up $resource >= $expected_count"
+    for i in $(seq 1 120); do
+        if [ $(nova hypervisor-stats | grep " $resource " | get_field 2) -ge $expected_count ]; then
+            return 0
+        fi
+        sleep 1
+    done
+    die $LINENO "Timed out waiting for Nova hypervisor-stats $resource >= $expected_count"
+}
+
 function enroll_vms {
     local chassis_id=$(ironic chassis-create -d "ironic test chassis" | grep " uuid " | get_field 2)
-    local idx=0
 
     if [[ "$IRONIC_DEPLOY_DRIVER" == "pxe_ssh" ]] ; then
         local _IRONIC_DEPLOY_KERNEL_KEY=pxe_deploy_kernel
@@ -468,6 +490,8 @@ function enroll_vms {
         local _IRONIC_DEPLOY_RAMDISK_KEY=deploy_ramdisk
     fi
 
+    local total_nodes=0
+    local total_cpus=0
     while read MAC; do
 
         local node_id=$(ironic node-create --chassis_uuid $chassis_id \
@@ -487,7 +511,8 @@ function enroll_vms {
 
         ironic port-create --address $MAC --node_uuid $node_id
 
-        idx=$((idx+1))
+        total_nodes=$((total_nodes+1))
+        total_cpus=$((total_cpus+$IRONIC_VM_SPECS_CPU))
     done < $IRONIC_VM_MACS_CSV_FILE
 
     # create the nova flavor
@@ -502,6 +527,11 @@ function enroll_vms {
     # from the flavor after the completion of
     # https://blueprints.launchpad.net/ironic/+spec/add-node-instance-info
     nova flavor-key baremetal set "cpu_arch"="x86_64" "baremetal:deploy_kernel_id"="$IRONIC_DEPLOY_KERNEL_ID" "baremetal:deploy_ramdisk_id"="$IRONIC_DEPLOY_RAMDISK_ID"
+
+    if [ "$VIRT_DRIVER" == "ironic" ]; then
+        wait_for_nova_resources "count" $total_nodes
+        wait_for_nova_resources "vcpus" $total_cpus
+    fi
 }
 
 function configure_iptables {
@@ -638,12 +668,12 @@ function upload_baremetal_ironic_deploy {
 }
 
 function prepare_baremetal_basic_ops {
+    configure_ironic_auxiliary
     upload_baremetal_ironic_deploy
     create_bridge_and_vms
     enroll_vms
     configure_tftpd
     configure_iptables
-    configure_ironic_auxiliary
 }
 
 function cleanup_baremetal_basic_ops {
