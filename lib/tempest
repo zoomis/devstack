@@ -44,11 +44,12 @@ set +o xtrace
 # --------
 
 # Set up default directories
+GITDIR["tempest-lib"]=$DEST/tempest-lib
+
 TEMPEST_DIR=$DEST/tempest
 TEMPEST_CONFIG_DIR=${TEMPEST_CONFIG_DIR:-$TEMPEST_DIR/etc}
 TEMPEST_CONFIG=$TEMPEST_CONFIG_DIR/tempest.conf
 TEMPEST_STATE_PATH=${TEMPEST_STATE_PATH:=$DATA_DIR/tempest}
-TEMPEST_LIB_DIR=$DEST/tempest-lib
 
 NOVA_SOURCE_DIR=$DEST/nova
 
@@ -76,7 +77,8 @@ IPV6_SUBNET_ATTRIBUTES_ENABLED=$(trueorfalse True $IPV6_SUBNET_ATTRIBUTES_ENABLE
 
 # configure_tempest() - Set config files, create data dirs, etc
 function configure_tempest {
-    setup_develop $TEMPEST_DIR
+    # install testr since its used to process tempest logs
+    pip_install `grep -h testrepository $REQUIREMENTS_DIR/global-requirements.txt | cut -d\# -f1`
     local image_lines
     local images
     local num_images
@@ -268,6 +270,9 @@ function configure_tempest {
     iniset $TEMPEST_CONFIG identity admin_domain_name $ADMIN_DOMAIN_NAME
     iniset $TEMPEST_CONFIG identity auth_version ${TEMPEST_AUTH_VERSION:-v2}
 
+    # Identity Features
+    iniset $TEMPEST_CONFIG identity-feature-enabled xml_api True
+
     # Image
     # for the gate we want to be able to override this variable so we aren't
     # doing an HTTP fetch over the wide internet for this test
@@ -294,7 +299,32 @@ function configure_tempest {
     iniset $TEMPEST_CONFIG compute-feature-enabled live_migration ${LIVE_MIGRATION_AVAILABLE:-False}
     iniset $TEMPEST_CONFIG compute-feature-enabled change_password False
     iniset $TEMPEST_CONFIG compute-feature-enabled block_migration_for_live_migration ${USE_BLOCK_MIGRATION_FOR_LIVE_MIGRATION:-False}
-    iniset $TEMPEST_CONFIG compute-feature-enabled api_extensions ${COMPUTE_API_EXTENSIONS:-"all"}
+
+    DEFAULT_COMPUTE_EXT="NMN, OS-DCF, OS-EXT-AZ, OS-EXT-IMG-SIZE, OS-EXT-IPS, OS-EXT-IPS-MAC, OS-EXT-SRV-ATTR, OS-EXT-STS"
+    DEFAULT_COMPUTE_EXT+=", OS-EXT-VIF-NET, OS-FLV-DISABLED, OS-FLV-EXT-DATA, OS-SCH-HNT, OS-SRV-USG"
+    DEFAULT_COMPUTE_EXT+=", os-admin-actions, os-agents, os-aggregates, os-assisted-volume-snapshots"
+    DEFAULT_COMPUTE_EXT+=", os-attach-interfaces, os-availability-zone, os-baremetal-ext-status, os-baremetal-nodes"
+    DEFAULT_COMPUTE_EXT+=", os-block-device-mapping-v2-boot, os-cell-capacities, os-cells, os-certificates"
+    DEFAULT_COMPUTE_EXT+=", os-cloudpipe, os-cloudpipe-update, os-config-drive, os-console-auth-tokens"
+    DEFAULT_COMPUTE_EXT+=", os-console-output, os-consoles, os-create-server-ext, os-deferred-delete, os-evacuate"
+    DEFAULT_COMPUTE_EXT+=", os-extended-evacuate-find-host, os-extended-floating-ips, os-extended-hypervisors"
+    DEFAULT_COMPUTE_EXT+=", os-extended-networks, os-extended-quotas, os-extended-rescue-with-image"
+    DEFAULT_COMPUTE_EXT+=", os-extended-services, os-extended-services-delete, os-extended-volumes, os-fixed-ips"
+    DEFAULT_COMPUTE_EXT+=", os-flavor-access, os-flavor-extra-specs, os-flavor-manage, os-flavor-rxtx"
+    DEFAULT_COMPUTE_EXT+=", os-flavor-swap, os-floating-ip-dns, os-floating-ip-pools, os-floating-ips"
+    DEFAULT_COMPUTE_EXT+=", os-floating-ips-bulk, os-fping, os-hide-server-addresses, os-hosts, os-hypervisor-status"
+    DEFAULT_COMPUTE_EXT+=", os-hypervisors, os-instance-actions, os-instance_usage_audit_log, os-keypairs"
+    DEFAULT_COMPUTE_EXT+=", os-migrations, os-multiple-create, os-networks, os-networks-associate"
+    DEFAULT_COMPUTE_EXT+=", os-preserve-ephemeral-rebuild, os-quota-class-sets, os-quota-sets, os-rescue"
+    DEFAULT_COMPUTE_EXT+=", os-security-group-default-rules, os-security-groups, os-server-diagnostics"
+    DEFAULT_COMPUTE_EXT+=", os-server-external-events, os-server-group-quotas, os-server-groups"
+    DEFAULT_COMPUTE_EXT+=", os-server-list-multi-status, os-server-password, os-server-start-stop, os-services"
+    DEFAULT_COMPUTE_EXT+=", os-shelve, os-simple-tenant-usage, os-tenant-networks, os-used-limits"
+    DEFAULT_COMPUTE_EXT+=", os-used-limits-for-admin, os-user-data, os-user-quotas, os-virtual-interfaces"
+    DEFAULT_COMPUTE_EXT+=", os-volume-attachment-update, os-volumes"
+
+    iniset $TEMPEST_CONFIG compute-feature-enabled api_extensions ${COMPUTE_API_EXTENSIONS:-$DEFAULT_COMPUTE_EXT}
+    iniset $TEMPEST_CONFIG compute-feature-enabled xml_api_v2 ${COMPUTE_XML_API_V2:-True}
     iniset $TEMPEST_CONFIG compute-feature-disabled api_extensions ${DISABLE_COMPUTE_API_EXTENSIONS}
 
     # Compute admin
@@ -310,20 +340,30 @@ function configure_tempest {
     iniset $TEMPEST_CONFIG network default_network "$FIXED_RANGE"
     iniset $TEMPEST_CONFIG network-feature-enabled ipv6 "$IPV6_ENABLED"
     iniset $TEMPEST_CONFIG network-feature-enabled ipv6_subnet_attributes "$IPV6_SUBNET_ATTRIBUTES_ENABLED"
-    iniset $TEMPEST_CONFIG network-feature-enabled api_extensions ${NETWORK_API_EXTENSIONS:-"all"}
+    DEFAULT_NET_EXT="agent, allowed-address-pairs, binding, dhcp_agent_scheduler, dvr, ext-gw-mode, external-net, extra_dhcp_opt"
+    DEFAULT_NET_EXT+=", extraroute, fwaas, l3-ha, l3_agent_scheduler, lbaas, lbaas_agent_scheduler, metering"
+    DEFAULT_NET_EXT+=", multi-provider, provider, quotas, router, security-group, service-type, vpnaas"
+    iniset $TEMPEST_CONFIG network-feature-enabled api_extensions ${NETWORK_API_EXTENSIONS:-$DEFAULT_NET_EXT}
     iniset $TEMPEST_CONFIG network-feature-disabled api_extensions ${DISABLE_NETWORK_API_EXTENSIONS}
     iniset $TEMPEST_CONFIG network-feature-enabled xml_api True
 
-    # boto
-    iniset $TEMPEST_CONFIG boto ec2_url "$EC2_SERVICE_PROTOCOL://$SERVICE_HOST:8773/services/Cloud"
-    iniset $TEMPEST_CONFIG boto s3_url "http://$SERVICE_HOST:${S3_SERVICE_PORT:-3333}"
-    iniset $TEMPEST_CONFIG boto s3_materials_path "$BOTO_MATERIALS_PATH"
-    iniset $TEMPEST_CONFIG boto ari_manifest cirros-${CIRROS_VERSION}-${CIRROS_ARCH}-initrd.manifest.xml
-    iniset $TEMPEST_CONFIG boto ami_manifest cirros-${CIRROS_VERSION}-${CIRROS_ARCH}-blank.img.manifest.xml
-    iniset $TEMPEST_CONFIG boto aki_manifest cirros-${CIRROS_VERSION}-${CIRROS_ARCH}-vmlinuz.manifest.xml
-    iniset $TEMPEST_CONFIG boto instance_type "$boto_instance_type"
-    iniset $TEMPEST_CONFIG boto http_socket_timeout 30
-    iniset $TEMPEST_CONFIG boto ssh_user ${DEFAULT_INSTANCE_USER:-cirros}
+    # boto - disabled
+    #
+    # because of compat issues boto in icehouse is not testable
+    # against tempest. Set FORCE_BOTO=1 in local.conf to enable.
+    iniset $TEMPEST_CONFIG compute-feature-enabled ec2_api False
+    if [[ -n "$FORCE_BOTO" ]]; then
+        iniset $TEMPEST_CONFIG boto ec2_url "$EC2_SERVICE_PROTOCOL://$SERVICE_HOST:8773/services/Cloud"
+        iniset $TEMPEST_CONFIG boto s3_url "http://$SERVICE_HOST:${S3_SERVICE_PORT:-3333}"
+        iniset $TEMPEST_CONFIG boto s3_materials_path "$BOTO_MATERIALS_PATH"
+        iniset $TEMPEST_CONFIG boto ari_manifest cirros-${CIRROS_VERSION}-${CIRROS_ARCH}-initrd.manifest.xml
+        iniset $TEMPEST_CONFIG boto ami_manifest cirros-${CIRROS_VERSION}-${CIRROS_ARCH}-blank.img.manifest.xml
+        iniset $TEMPEST_CONFIG boto aki_manifest cirros-${CIRROS_VERSION}-${CIRROS_ARCH}-vmlinuz.manifest.xml
+        iniset $TEMPEST_CONFIG boto instance_type "$boto_instance_type"
+        iniset $TEMPEST_CONFIG boto http_socket_timeout 30
+        iniset $TEMPEST_CONFIG boto ssh_user ${DEFAULT_INSTANCE_USER:-cirros}
+        iniset $TEMPEST_CONFIG compute-feature-enabled ec2_api True
+    fi
 
     # Orchestration Tests
     if is_service_enabled heat; then
@@ -354,11 +394,20 @@ function configure_tempest {
     iniset $TEMPEST_CONFIG telemetry too_slow_to_test "False"
 
     # Object storage
-    iniset $TEMPEST_CONFIG object-storage-feature-enabled discoverable_apis ${OBJECT_STORAGE_API_EXTENSIONS:-"all"}
+    DEFAULT_SWIFT_OPT="account_quotas, bulk_delete, bulk_upload, container_quotas, container_sync, crossdomain, formpost"
+    DEFAULT_SWIFT_OPT+=", keystoneauth, ratelimit, slo, staticweb, tempauth, tempurl"
+    iniset $TEMPEST_CONFIG object-storage-feature-enabled discoverable_apis ${OBJECT_STORAGE_API_EXTENSIONS:-$DEFAULT_SWIFT_OPT}
     iniset $TEMPEST_CONFIG object-storage-feature-disabled discoverable_apis ${OBJECT_STORAGE_DISABLE_API_EXTENSIONS}
 
     # Volume
-    iniset $TEMPEST_CONFIG volume-feature-enabled api_extensions ${VOLUME_API_EXTENSIONS:-"all"}
+    DEFAULT_VOL_EXT="OS-SCH-HNT, backups, cgsnapshots, consistencygroups, encryption, os-admin-actions, os-availability-zone"
+    DEFAULT_VOL_EXT+=", os-extended-services, os-extended-snapshot-attributes, os-hosts, os-image-create"
+    DEFAULT_VOL_EXT+=", os-quota-class-sets, os-quota-sets, os-services, os-snapshot-actions, os-types-extra-specs"
+    DEFAULT_VOL_EXT+=", os-types-manage, os-used-limits, os-vol-host-attr, os-vol-image-meta"
+    DEFAULT_VOL_EXT+=", os-vol-mig-status-attr, os-vol-tenant-attr, os-volume-actions, os-volume-encryption-metadata"
+    DEFAULT_VOL_EXT+=", os-volume-manage, os-volume-replication, os-volume-transfer, os-volume-unmanage, qos-specs"
+    DEFAULT_VOL_EXT+=", scheduler-stats"
+    iniset $TEMPEST_CONFIG volume-feature-enabled api_extensions ${VOLUME_API_EXTENSIONS:-$DEFAULT_VOL_EXT}
     iniset $TEMPEST_CONFIG volume-feature-disabled api_extensions ${DISABLE_VOLUME_API_EXTENSIONS}
     if ! is_service_enabled c-bak; then
         iniset $TEMPEST_CONFIG volume-feature-enabled backup False
@@ -429,8 +478,10 @@ function create_tempest_accounts {
 
 # install_tempest_lib() - Collect source, prepare, and install tempest-lib
 function install_tempest_lib {
-    git_clone $TEMPEST_LIB_REPO $TEMPEST_LIB_DIR $TEMPEST_LIB_BRANCH
-    setup_develop $TEMPEST_LIB_DIR
+    if use_library_from_git "tempest-lib"; then
+        git_clone_by_name "tempest-lib"
+        setup_dev_lib "tempest-lib"
+    fi
 }
 
 # install_tempest() - Collect source and prepare

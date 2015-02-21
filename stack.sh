@@ -215,7 +215,7 @@ fi
 # image was created (fix in the works).  Remove all pip packages
 # before we do anything else
 if [[ $DISTRO = "rhel7" && is_rackspace ]]; then
-    (sudo pip freeze | xargs sudo pip uninstall -y) || true
+    (sudo -H pip freeze | xargs sudo -H pip uninstall -y) || true
 fi
 
 # Some distros need to add repos beyond the defaults provided by the vendor
@@ -582,9 +582,6 @@ if [[ -d $TOP_DIR/extras.d ]]; then
     done
 fi
 
-# Set the destination directories for other OpenStack projects
-OPENSTACKCLIENT_DIR=$DEST/python-openstackclient
-
 # Interactive Configuration
 # -------------------------
 
@@ -786,8 +783,14 @@ fi
 # Install middleware
 install_keystonemiddleware
 
-git_clone $OPENSTACKCLIENT_REPO $OPENSTACKCLIENT_DIR $OPENSTACKCLIENT_BRANCH
-setup_develop $OPENSTACKCLIENT_DIR
+# install the OpenStack client, needed for most setup commands
+if use_library_from_git "python-openstackclient"; then
+    git_clone_by_name "python-openstackclient"
+    setup_dev_lib "python-openstackclient"
+else
+    pip_install 'python-openstackclient==1.0.1'
+fi
+
 
 if is_service_enabled key; then
     if [ "$KEYSTONE_AUTH_HOST" == "$SERVICE_HOST" ]; then
