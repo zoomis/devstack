@@ -569,6 +569,9 @@ source $TOP_DIR/lib/baremetal
 source $TOP_DIR/lib/ldap
 source $TOP_DIR/lib/dstat
 
+#Added by JMKang
+source $TOP_DIR/lib/elasticswitch
+
 # Extras Source
 # --------------
 
@@ -982,6 +985,13 @@ start_dstat
 # Start Services
 # ==============
 
+# ElasticSwitch (JM Kang)
+if is_service_enabled elasticswitch; then
+    echo_summary "Install ElasticSwitch"
+    install_elasticswitch
+fi
+
+
 # Keystone
 # --------
 
@@ -1304,6 +1314,12 @@ if is_service_enabled heat; then
         echo_summary "Building Heat functional test image"
         build_heat_functional_test_image
     fi
+fi
+
+# ElasticSwitch (JM Kang)
+if is_service_enabled elasticswitch; then
+    echo_summary "Start ElasticSwitch"
+    start_elasticswitch
 fi
 
 
