@@ -1,0 +1,61 @@
+# Network
+# eth0: management
+# eth2: guest data
+# eth3: public
+#
+# After ./stack.sh, make sure that eth1 and eth2 are properly setup in OVS:
+# sudo ovs-vsctl add-br br-eth2
+# sudo ovs-vsctl add-port br-eth2 eth2
+# sudo ovs-vsctl add-port br-ex eth3
+
+# Set this to your management IP
+HOST_IP=cnc14
+SERVICE_HOST=cnc12
+MYSQL_HOST=$SERVICE_HOST
+RABBIT_HOST=$SERVICE_HOST
+GLANCE_HOSTPORT=$SERVICE_HOST:9292
+KEYSTONE_AUTH_HOST=$SERVICE_HOST
+KEYSTONE_SERVICE_HOST=$SERVICE_HOST
+
+MULTI_HOST=True
+
+disable_all_services
+enable_service n-cpu,rabbit,q-agt,q-api,neutron
+
+#enable_service ceilometer-acompute ceilometer-acentral ceilometer-collector ceilometer-api
+#enable_service ceilometer-alarm-notifier ceilometer-alarm-evaluator
+
+Q_PLUGIN=ml2
+ML2_VLAN_RANGES=physnet1:100:200
+FLOATING_RANGE=192.168.100.0/24
+PUBLIC_NETWORK_GATEWAY=192.168.100.1
+
+ENABLE_TENANT_VLANS=True
+TENANT_VLAN_RANGE=2000:3000
+PHYSICAL_NETWORK=physnet1
+OVS_ENABLE_TUNNELING=False
+OVS_BRIDGE_MAPPINGS=physnet1:br-eth2
+OVS_PHYSICAL_BRIDGE=br-eth2
+PUBLIC_INTERFACE_DEFAULT=eth3
+GUEST_INTERFACE_DEFAULT=eth2
+
+VOLUME_BACKING_FILE_SIZE=50000M
+
+LIBVIRT_TYPE=kvm
+
+SCREEN_LOGDIR=$DEST/logs/screen
+LOG_COLOR=True
+
+DATABASE_PASSWORD=ccdemo11
+RABBIT_PASSWORD=ccdemo11
+SERVICE_TOKEN=ccdemo11
+SERVICE_PASSWORD=ccdemo11
+ADMIN_PASSWORD=ccdemo11
+
+VERBOSE=True
+
+API_RATE_LIMIT=False
+
+#RECLONE=yes
+
+GIT_BASE=${GIT_BASE:-https://git.openstack.org}

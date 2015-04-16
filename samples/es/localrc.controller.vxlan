@@ -1,0 +1,154 @@
+# Devstack localrc for all in one
+# default
+#HOST_IP=192.168.56.11
+#HOST_IP=15.25.117.183
+HOST_IP=192.168.58.11
+DATA_IP=192.168.56.11
+SERVICE_HOST=$HOST_IP
+KEYSTONE_AUTH_HOST=$SERVICE_HOST
+
+# Multi Compute
+MULTI_HOST=True
+
+# Private subnet
+FIXED_RANGE=10.0.0.0/24
+NETWORK_GATEWAY=10.0.0.1
+
+# Neutron External subnet
+FLOATING_RANGE=10.0.2.0/24
+PUBLIC_NETWORK_GATEWAY=10.0.2.1
+Q_FLOATING_ALLOCATION_POOL=start=10.0.2.193,end=10.0.2.254
+
+# Neutron configuration
+#Q_PLUGIN=ml2
+Q_PLUGIN=hp_elasticswitch
+Q_AGENT=es_openvswitch
+Q_ML2_PLUGIN_MECHANISM_DRIVERS=openvswitch,linuxbridge,l2population,hp_elasticswitch
+#Q_ML2_PLUGIN_MECHANISM_DRIVERS=openvswitch,linuxbridge,l2population
+#Q_ML2_TENANT_NETWORK_TYPE=gre
+#ENABLE_TENANT_TUNNELS=True
+#TENANT_TUNNEL_RANGE=-1:1000
+Q_ML2_TENANT_NETWORK_TYPE=vxlan
+#Q_USE_PROVIDERNET_FOR_PUBLIC=True
+#PHYSICAL_NETWORK=physnet1
+#OVS_BRIDGE_MAPPINGS=physnet1:br-em3
+#OVS_PHYSICAL_BRIDGE=br-em3
+#OVS_ENABLE_TUNNELING=True
+#PUBLIC_BRIDGE=br-em3
+#GUEST_INTERFACE_DEFAULT=em3
+
+Q_ML2_PLUGIN_VXLAN_TYPE_OPTIONS=(vni_ranges=1000:2000)
+Q_AGENT_EXTRA_AGENT_OPTS=(tunnel_types=vxlan vxlan_udp_port=8472)
+
+#Q_AGENT_EXTRA_AGENT_OPTS=(tunnel_type=gre)
+#Q_AGENT_EXTRA_SRV_OPTS=(local_ip=$HOST_IP)
+Q_AGENT_EXTRA_SRV_OPTS=(local_ip=$DATA_IP)
+Q_USE_NAMESPACE=True
+Q_USE_SECGROUP=True
+
+# Nova service
+enable_service n-api
+enable_service n-crt
+enable_service n-obj
+#enable_service n-cpu
+disable_service n-cpu
+enable_service n-cond
+enable_service n-sch
+enable_service n-novnc
+enable_service n-cauth
+
+# Cinder service
+enable_service cinder
+enable_service c-api
+enable_service c-vol
+enable_service c-sch
+enable_service c-bak
+
+# Tempest service
+enable_service tempest
+
+# Neutron service
+disable_service n-net
+enable_service neutron
+enable_service q-svc
+enable_service q-agt
+enable_service q-dhcp
+enable_service q-l3
+enable_service q-meta
+enable_service q-lbaas
+
+# Controller Node
+Q_HOST=$SERVICE_HOST
+
+# vnc
+VNCSERVER_LISTEN=0.0.0.0
+VNCSERVER_PROXYCLIENT_ADDRESS=$HOST_IP
+
+# logs
+LOGFILE=$DEST/stack/logs/stack.sh.log
+SCREEN_LOGDIR=$DEST/stack/logs/screen
+
+# system password
+ADMIN_PASSWORD=ccdemo11
+MYSQL_PASSWORD=ccdemo11
+RABBIT_PASSWORD=ccdemo11
+SERVICE_PASSWORD=ccdemo11
+SERVICE_TOKEN=ccdemo11
+
+# Cinder configuration
+VOLUME_GROUP="cinder-volumes"
+VOLUME_NAME_PREFIX="volume-"
+
+# Heat service
+enable_service heat
+enable_service h-api
+enable_service h-api-cfn
+enable_service h-api-cw
+enable_service h-eng
+
+# Ceilometer service
+#enable_service ceilometer
+#enable_service ceilometer-acompute
+#enable_service ceilometer-acentral
+#enable_service ceilometer-collector
+#enable_service ceilometer-api
+#enable_service ceilometer-alarm-singleton
+#enable_service ceilometer-alarm-notifier
+
+# Swift service
+#enable_service s-proxy
+#enable_service s-object
+#enable_service s-container
+#enable_service s-account
+
+# Trove service
+#enable_service trove
+#enable_service tr-api
+#enable_service tr-tmgr
+#enable_service tr-cond
+
+# Images
+# Use this image when creating test instances
+IMAGE_URLS+=",http://cdn.download.cirros-cloud.net/0.3.2/cirros-0.3.2-x86_64-disk.img"
+# Use this image when working with Orchestration (Heat)
+#IMAGE_URLS+=",http://fedorapeople.org/groups/heat/prebuilt-jeos-images/F17-x86_64-cfntools.qcow2"
+
+#KEYSTONE_CATALOG_BACKEND=sql
+API_RATE_LIMIT=False
+SWIFT_HASH=testing
+SWIFT_REPLICAS=1
+
+#scheduler
+SCHEDULER=nova.scheduler.filter_scheduler.FilterScheduler
+
+# A clean install every time
+#RECLONE=yes
+
+GIT_BASE=${GIT_BASE:-https://git.openstack.org}
+
+
+NEUTRON_REPO=${NEUTRON_REPO:-https://github.com/zoomis/hp_neutron.git}
+NEUTRON_BRANCH=${NEUTRON_BRANCH:-juno_es}
+
+NEUTRONCLIENT_REPO=${NEUTRONCLIENT_REPO:-https://github.com/zoomis/python-neutronclient.git}
+NEUTRONCLIENT_BRANCH=${NEUTRONCLIENT_BRANCH:-juno_es}
