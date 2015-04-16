@@ -1,0 +1,10 @@
+Installation OpenStack Juno in CNC node
+
+1. Download devstack
+2. Configure IP address for eth2(guest vm data) and eth3 (public)
+3. Configure localrc for controller or compute node with its original IP address
+
+1. Upgrade openvswitch > 2.0
+2. Upgrade dhcp agent dnsmasq (from devstack) for only controller node
+3. When we use VxLAN, we have to change MTU from 1500 to 1550
+https://bugs.launchpad.net/neutron/+bug/1348788
